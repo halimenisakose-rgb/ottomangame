@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZAFER: Osmanlı Kılıcı</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Noto+Sans+Ottoman&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ottoman-red: #8B0000;
+            --ottoman-gold: #D4AF37;
+            --ottoman-green: #2E5C38;
+            --dark-bg: #1a1a1a;
+        }
+        
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--dark-bg);
+            font-family: 'Cinzel', serif;
+            user-select: none;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: linear-gradient(to bottom, #2c1810 0%, #1a0f0a 100%);
+            cursor: crosshair;
+        }
+        
+        .ottoman-border {
+            border: 4px solid var(--ottoman-gold);
+            box-shadow: 
+                0 0 20px rgba(212, 175, 55, 0.5),
+                inset 0 0 20px rgba(139, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .ottoman-border::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            right: -8px;
+            bottom: -8px;
+            border: 2px solid var(--ottoman-red);
+            pointer-events: none;
+        }
+        
+        .ui-panel {
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.95), rgba(46, 92, 56, 0.9));
+            border: 3px solid var(--ottoman-gold);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+        
+        .btn-ottoman {
+            background: linear-gradient(to bottom, var(--ottoman-gold), #B8860B);
+            color: #1a0000;
+            border: 2px solid #FFD700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            font-weight: 700;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-ottoman:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(212, 175, 55, 0.6);
+            background: linear-gradient(to bottom, #FFD700, var(--ottoman-gold));
+        }
+        
+        .btn-ottoman:active {
+            transform: translateY(0);
+        }
+        
+        .health-bar {
+            background: linear-gradient(to right, #8B0000, #DC143C);
+            border: 2px solid var(--ottoman-gold);
+            height: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .health-fill {
+            background: linear-gradient(to right, #228B22, #32CD32);
+            height: 100%;
+            transition: width 0.3s;
+            box-shadow: 0 0 10px rgba(50, 205, 50, 0.5);
+        }
+        
+        .health-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: 900;
+            text-shadow: 2px 2px 4px black;
+            font-size: 14px;
+        }
+        
+        .damage-text {
+            position: absolute;
+            color: #ff4444;
+            font-weight: 900;
+            font-size: 24px;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            text-shadow: 2px 2px 0 #000;
+        }
+        
+        @keyframes floatUp {
+            to {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+        }
+        
+        .crescent {
+            width: 60px;
+            height: 60px;
+            background: transparent;
+            box-shadow: -10px 0 0 5px var(--ottoman-gold);
+            border-radius: 50%;
+            display: inline-block;
+            transform: rotate(-20deg);
+        }
+        
+        .star {
+            color: var(--ottoman-gold);
+            font-size: 24px;
+            display: inline-block;
+            animation: rotate 10s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        #startScreen, #gameOverScreen, #victoryScreen {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+        }
+        
+        .pattern-bg {
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(212, 175, 55, 0.1) 35px, rgba(212, 175, 55, 0.1) 70px),
+                repeating-linear-gradient(-45deg, transparent, transparent 35px, rgba(139, 0, 0, 0.1) 35px, rgba(139, 0, 0, 0.1) 70px);
+        }
+        
+        .sword-cursor {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="%23D4AF37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/></svg>') 16 16, auto;
+        }
+    </style>
+</head>
+<body class="sword-cursor">
+
+    <!-- Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden fixed top-0 left-0 w-full p-4 pointer-events-none">
+        <div class="flex justify-between items-start max-w-6xl mx-auto">
+            <!-- Player Stats -->
+            <div class="ui-panel p-4 rounded-lg pointer-events-auto min-w-[250px]">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-red-700 to-red-900 border-2 border-yellow-500 flex items-center justify-center text-2xl">⚔️</div>
+                    <div>
+                        <div class="text-yellow-400 font-bold text-lg">SİPAHİ</div>
+                        <div class="text-xs text-yellow-200">Seviye <span id="levelDisplay">1</span></div>
+                    </div>
+                </div>
+                <div class="health-bar rounded">
+                    <div id="healthFill" class="health-fill" style="width: 100%"></div>
+                    <div class="health-text"><span id="healthText">100</span> / 100</div>
+                </div>
+                <div class="mt-2 flex gap-2 text-yellow-400 text-sm">
+                    <span>⚔️ <span id="scoreDisplay">0</span></span>
+                    <span>🛡️ <span id="defenseDisplay">0</span>%</span>
+                </div>
+            </div>
+
+            <!-- Wave Info -->
+            <div class="ui-panel px-6 py-3 rounded-lg text-center">
+                <div class="text-yellow-400 text-sm tracking-widest">DALGA</div>
+                <div id="waveDisplay" class="text-3xl font-bold text-white">1</div>
+                <div id="enemyCount" class="text-xs text-yellow-200 mt-1">Düşman: 0</div>
+            </div>
+
+            <!-- Controls Hint -->
+            <div class="ui-panel p-3 rounded-lg text-xs text-yellow-200 opacity-80">
+                <div class="mb-1">WASD / OK : Hareket</div>
+                <div class="mb-1">BOŞLUK / SOL TIK : Saldırı</div>
+                <div>SHIFT : Blok</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="startScreen" class="fixed inset-0 flex items-center justify-center z-50 pattern-bg">
+        <div class="ui-panel p-12 rounded-2xl text-center max-w-2xl ottoman-border transform hover:scale-105 transition-transform duration-500">
+            <div class="mb-6">
+                <span class="crescent mr-4"></span>
+                <span class="star">★</span>
+            </div>
+            <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 mb-4 drop-shadow-lg" style="font-family: 'Cinzel', serif;">
+                ZAFER
+            </h1>
+            <p class="text-yellow-200 text-xl mb-2 tracking-widest">OSMANLI KILICI</p>
+            <div class="h-1 w-32 bg-gradient-to-r from-transparent via-yellow-500 to-transparent mx-auto mb-8"></div>
+            
+            <p class="text-gray-300 mb-8 max-w-md mx-auto leading-relaxed">
+                1526 Mohaç Meydan Muharebesi'ne hoş geldiniz. Macar ordularına karşı kılıcınızı çekin ve 
+                zaferle dönün. Padişahımız Yavuz Sultan Selim'in izinde...
+            </p>
+
+            <button onclick="game.start()" class="btn-ottoman px-12 py-4 text-xl rounded-lg shadow-2xl">
+                SAVAŞA BAŞLA
+            </button>
+            
+            <div class="mt-8 text-xs text-yellow-600 opacity-60">
+                "Zafer, zafer benimdir diyebilenindir."
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" class="hidden fixed inset-0 flex items-center justify-center z-50 pattern-bg">
+        <div class="ui-panel p-12 rounded-2xl text-center max-w-xl ottoman-border">
+            <h2 class="text-5xl font-bold text-red-500 mb-4">ŞEHİT DÜŞTÜNÜZ</h2>
+            <p class="text-yellow-200 text-lg mb-6">Cennet mekan olsun...</p>
+            <div class="text-3xl text-white mb-8">Skor: <span id="finalScore">0</span></div>
+            <button onclick="location.reload()" class="btn-ottoman px-8 py-3 rounded-lg">
+                TEKRAR DENE
+            </button>
+        </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victoryScreen" class="hidden fixed inset-0 flex items-center justify-center z-50 pattern-bg">
+        <div class="ui-panel p-12 rounded-2xl text-center max-w-xl ottoman-border border-green-500">
+            <h2 class="text-5xl font-bold text-green-400 mb-4">ZAFER!</h2>
+            <p class="text-yellow-200 text-lg mb-6">Mohaç Meydan Muharebesi kazanıldı!</p>
+            <div class="text-3xl text-white mb-8">Toplam Skor: <span id="victoryScore">0</span></div>
+            <button onclick="location.reload()" class="btn-ottoman px-8 py-3 rounded-lg bg-gradient-to-b from-green-600 to-green-800">
+                YENİDEN OYNA
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Game Constants
+        const CANVAS_WIDTH = window.innerWidth;
+        const CANVAS_HEIGHT = window.innerHeight;
+        
+        // Colors
+        const COLORS = {
+            blood: '#8B0000',
+            gold: '#D4AF37',
+            silver: '#C0C0C0',
+            steel: '#4682B4',
+            skin: '#FDBCB4',
+            turban: '#FFFFFF',
+            armor: '#4A4A4A',
+            ground: '#3d2817'
+        };
+
+        // Canvas Setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+
+        // Game State
+        const game = {
+            state: 'start', // start, playing, gameover, victory
+            wave: 1,
+            score: 0,
+            enemiesKilled: 0,
+            particles: [],
+            floatingTexts: [],
+            camera: { x: 0, y: 0 },
+            
+            start() {
+                document.getElementById('startScreen').classList.add('hidden');
+                document.getElementById('hud').classList.remove('hidden');
+                this.state = 'playing';
+                this.spawnWave();
+                gameLoop();
+            },
+            
+            spawnWave() {
+                const enemyCount = 3 + this.wave * 2;
+                for (let i = 0; i < enemyCount; i++) {
+                    const angle = (Math.PI * 2 * i) / enemyCount;
+                    const distance = 300 + Math.random() * 200;
+                    enemies.push(new Enemy(
+                        player.x + Math.cos(angle) * distance,
+                        player.y + Math.sin(angle) * distance,
+                        this.wave
+                    ));
+                }
+                this.updateHUD();
+            },
+            
+            updateHUD() {
+                document.getElementById('waveDisplay').textContent = this.wave;
+                document.getElementById('scoreDisplay').textContent = this.score;
+                document.getElementById('enemyCount').textContent = `Düşman: ${enemies.length}`;
+                document.getElementById('healthText').textContent = Math.ceil(player.health);
+                document.getElementById('healthFill').style.width = `${(player.health / player.maxHealth) * 100}%`;
+            },
+            
+            gameOver() {
+                this.state = 'gameover';
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('gameOverScreen').classList.remove('hidden');
+                document.getElementById('hud').classList.add('hidden');
+            },
+            
+            victory() {
+                this.state = 'victory';
+                document.getElementById('victoryScore').textContent = this.score;
+                document.getElementById('victoryScreen').classList.remove('hidden');
+                document.getElementById('hud').classList.add('hidden');
+            }
+        };
+
+        // Input Handling
+        const keys = {};
+        const mouse = { x: 0, y: 0, down: false };
+        
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space') player.attack();
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+        
+        canvas.addEventListener('mousedown', () => {
+            mouse.down = true;
+            player.attack();
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            mouse.down = false;
+        });
+
+        // Classes
+        class Particle {
+            constructor(x, y, color, speed, size, life) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.vx = (Math.random() - 0.5) * speed;
+                this.vy = (Math.random() - 0.5) * speed;
+                this.size = size;
+                this.life = life;
+                this.maxLife = life;
+                this.gravity = 0.2;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.life--;
+                this.size *= 0.98;
+            }
+            
+            draw(ctx, camX, camY) {
+                ctx.globalAlpha = this.life / this.maxLife;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x - camX, this.y - camY, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text, color) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.life = 60;
+                this.vy = -2;
+            }
+            
+            update() {
+                this.y += this.vy;
+                this.life--;
+            }
+            
+            draw(ctx, camX, camY) {
+                if (this.life <= 0) return;
+                ctx.globalAlpha = this.life / 60;
+                ctx.fillStyle = this.color;
+                ctx.font = 'bold 24px Cinzel';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.strokeText(this.text, this.x - camX, this.y - camY);
+                ctx.fillText(this.text, this.x - camX, this.y - camY);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Entity {
+            constructor(x, y, radius, speed) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.speed = speed;
+                this.vx = 0;
+                this.vy = 0;
+                this.angle = 0;
+                this.health = 100;
+                this.maxHealth = 100;
+                this.attacking = false;
+                this.attackCooldown = 0;
+                this.blocking = false;
+                this.hitFlash = 0;
+            }
+            
+            move(dx, dy) {
+                this.vx = dx * this.speed;
+                this.vy = dy * this.speed;
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Boundary check
+                this.x = Math.max(this.radius, Math.min(3000 - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(3000 - this.radius, this.y));
+            }
+            
+            takeDamage(amount, attacker) {
+                if (this.blocking && Math.random() > 0.5) {
+                    // Blocked
+                    game.particles.push(new Particle(this.x, this.y - 20, '#FFD700', 5, 3, 20));
+                    game.floatingTexts.push(new FloatingText(this.x, this.y - 40, "BLOK!", '#FFD700'));
+                    return;
+                }
+                
+                this.health -= amount;
+                this.hitFlash = 10;
+                
+                // Blood particles
+                for (let i = 0; i < 8; i++) {
+                    game.particles.push(new Particle(
+                        this.x, this.y, 
+                        COLORS.blood, 
+                        8, 
+                        Math.random() * 4 + 2, 
+                        30 + Math.random() * 20
+                    ));
+                }
+                
+                game.floatingTexts.push(new FloatingText(this.x, this.y - 40, `-${amount}`, '#ff4444'));
+                
+                if (this.health <= 0 && this !== player) {
+                    this.die();
+                }
+            }
+            
+            die() {
+                // Death particles
+                for (let i = 0; i < 15; i++) {
+                    game.particles.push(new Particle(
+                        this.x, this.y, 
+                        COLORS.blood, 
+                        10, 
+                        Math.random() * 5 + 3, 
+                        40
+                    ));
+                }
+            }
+            
+            drawHealthBar(ctx, camX, camY) {
+                const barWidth = 40;
+                const barHeight = 6;
+                const x = this.x - camX - barWidth / 2;
+                const y = this.y - camY - this.radius - 15;
+                
+                ctx.fillStyle = '#000';
+                ctx.fillRect(x - 1, y - 1, barWidth + 2, barHeight + 2);
+                
+                ctx.fillStyle = '#333';
+                ctx.fillRect(x, y, barWidth, barHeight);
+                
+                ctx.fillStyle = this === player ? '#00ff00' : '#ff0000';
+                ctx.fillRect(x, y, barWidth * (this.health / this.maxHealth), barHeight);
+            }
+        }
+
+        class Player extends Entity {
+            constructor() {
+                super(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 20, 5);
+                this.maxHealth = 100;
+                this.health = 100;
+                this.attackRange = 80;
+                this.damage = 25;
+                this.defense = 0;
+            }
+            
+            update() {
+                let dx = 0;
+                let dy = 0;
+                
+                if (keys['KeyW'] || keys['ArrowUp']) dy = -1;
+                if (keys['KeyS'] || keys['ArrowDown']) dy = 1;
+                if (keys['KeyA'] || keys['ArrowLeft']) dx = -1;
+                if (keys['KeyD'] || keys['ArrowRight']) dx = 1;
+                
+                // Normalize diagonal movement
+                if (dx !== 0 && dy !== 0) {
+                    dx *= 0.707;
+                    dy *= 0.707;
+                }
+                
+                this.move(dx, dy);
+                
+                // Blocking
+                this.blocking = keys['ShiftLeft'] || keys['ShiftRight'];
+                if (this.blocking) {
+                    this.speed = 2;
+                    this.defense = 50;
+                } else {
+                    this.speed = 5;
+                    this.defense = 0;
+                }
+                
+                // Update angle to face mouse
+                this.angle = Math.atan2(mouse.y - (this.y - game.camera.y), mouse.x - (this.x - game.camera.x));
+                
+                // Attack cooldown
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                if (this.attacking && this.attackCooldown <= 20) this.attacking = false;
+                
+                // Hit flash
+                if (this.hitFlash > 0) this.hitFlash--;
+                
+                // Update camera
+                game.camera.x = this.x - CANVAS_WIDTH / 2;
+                game.camera.y = this.y - CANVAS_HEIGHT / 2;
+            }
+            
+            attack() {
+                if (this.attackCooldown > 0 || this.blocking) return;
+                
+                this.attacking = true;
+                this.attackCooldown = 40;
+                
+                // Check hits on enemies
+                enemies.forEach(enemy => {
+                    const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                    const angleToEnemy = Math.atan2(enemy.y - this.y, enemy.x - this.x);
+                    const angleDiff = Math.abs(angleToEnemy - this.angle);
+                    
+                    if (dist < this.attackRange && angleDiff < 1) {
+                        enemy.takeDamage(this.damage, this);
+                        
+                        // Spark particles
+                        for (let i = 0; i < 5; i++) {
+                            game.particles.push(new Particle(
+                                enemy.x, enemy.y, 
+                                '#FFD700', 
+                                6, 
+                                2, 
+                                15
+                            ));
+                        }
+                    }
+                });
+                
+                // Whoosh effect
+                game.particles.push(new Particle(
+                    this.x + Math.cos(this.angle) * 40,
+                    this.y + Math.sin(this.angle) * 40,
+                    'rgba(255,255,255,0.5)',
+                    3,
+                    20,
+                    10
+                ));
+            }
+            
+            draw(ctx, camX, camY) {
+                const x = this.x - camX;
+                const y = this.y - camY;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(this.angle);
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(0, 35, 25, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Body (Ottoman armor)
+                ctx.fillStyle = COLORS.armor;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = COLORS.gold;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // Turban
+                ctx.fillStyle = COLORS.turban;
+                ctx.beginPath();
+                ctx.arc(0, -5, this.radius - 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Gold detail on turban
+                ctx.strokeStyle = COLORS.gold;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, -5, this.radius - 5, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Arms
+                ctx.fillStyle = COLORS.skin;
+                
+                // Left arm (shield if blocking)
+                if (this.blocking) {
+                    ctx.fillStyle = '#8B4513';
+                    ctx.fillRect(-15, -25, 10, 30);
+                    // Shield
+                    ctx.fillStyle = COLORS.gold;
+                    ctx.beginPath();
+                    ctx.arc(-20, -10, 15, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#8B0000';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                } else {
+                    ctx.fillRect(-15, -10, 8, 20);
+                }
+                
+                // Right arm (sword arm)
+                ctx.fillStyle = COLORS.skin;
+                const armAngle = this.attacking ? -0.5 : 0.3;
+                ctx.save();
+                ctx.rotate(armAngle);
+                ctx.fillRect(10, -5, 8, 25);
+                
+                // Sword
+                ctx.fillStyle = '#C0C0C0';
+                // Blade
+                ctx.beginPath();
+                ctx.moveTo(14, -5);
+                ctx.lineTo(18, -5);
+                ctx.lineTo(16, -50);
+                ctx.lineTo(14, -5);
+                ctx.fill();
+                
+                // Guard
+                ctx.fillStyle = COLORS.gold;
+                ctx.fillRect(12, -5, 8, 4);
+                
+                // Hilt
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(15, 0, 2, 10);
+                ctx.restore();
+                
+                ctx.restore();
+                
+                // Hit flash
+                if (this.hitFlash > 0) {
+                    ctx.fillStyle = `rgba(255,0,0,${this.hitFlash / 20})`;
+                    ctx.fillRect(x - 30, y - 30, 60, 60);
+                }
+                
+                this.drawHealthBar(ctx, camX, camY);
+            }
+        }
+
+        class Enemy extends Entity {
+            constructor(x, y, wave) {
+                super(x, y, 18, 2 + wave * 0.3);
+                this.maxHealth = 50 + wave * 15;
+                this.health = this.maxHealth;
+                this.damage = 10 + wave * 3;
+                this.attackRange = 60;
+                this.attackCooldown = 0;
+                this.type = Math.random() > 0.7 ? 'heavy' : 'light';
+                
+                if (this.type === 'heavy') {
+                    this.radius = 22;
+                    this.maxHealth *= 1.5;
+                    this.health = this.maxHealth;
+                    this.speed *= 0.7;
+                    this.damage *= 1.5;
+                }
+            }
+            
+            update() {
+                const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                
+                if (dist > this.attackRange) {
+                    // Move toward player
+                    const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                    this.move(Math.cos(angle), Math.sin(angle));
+                    this.angle = angle;
+                } else if (this.attackCooldown <= 0) {
+                    // Attack
+                    this.attack();
+                }
+                
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                if (this.hitFlash > 0) this.hitFlash--;
+                
+                // Separation from other enemies
+                enemies.forEach(other => {
+                    if (other === this) return;
+                    const d = Math.atan2(other.y - this.y, other.x - this.x);
+                    if (d < this.radius + other.radius) {
+                        const angle = Math.atan2(this.y - other.y, this.x - other.x);
+                        this.x += Math.cos(angle) * 2;
+                        this.y += Math.sin(angle) * 2;
+                    }
+                });
+            }
+            
+            attack() {
+                this.attacking = true;
+                this.attackCooldown = 60;
+                
+                // Check if player is still in range
+                const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                if (dist <= this.attackRange + 10) {
+                    player.takeDamage(this.damage, this);
+                }
+                
+                setTimeout(() => this.attacking = false, 200);
+            }
+            
+            die() {
+                super.die();
+                const index = enemies.indexOf(this);
+                if (index > -1) {
+                    enemies.splice(index, 1);
+                    game.score += this.type === 'heavy' ? 150 : 100;
+                    game.enemiesKilled++;
+                    game.updateHUD();
+                    
+                    // Check wave completion
+                    if (enemies.length === 0) {
+                        if (game.wave >= 5) {
+                            game.victory();
+                        } else {
+                            game.wave++;
+                            setTimeout(() => game.spawnWave(), 2000);
+                        }
+                    }
+                }
+            }
+            
+            draw(ctx, camX, camY) {
+                const x = this.x - camX;
+                const y = this.y - camY;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(this.angle);
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.beginPath();
+                ctx.ellipse(0, 32, 22, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Body
+                ctx.fillStyle = this.type === 'heavy' ? '#2F4F4F' : '#4A4A4A';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                if (this.type === 'heavy') {
+                    // Heavy armor details
+                    ctx.strokeStyle = '#C0C0C0';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    ctx.fillStyle = '#8B0000';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Helmet
+                ctx.fillStyle = '#696969';
+                ctx.beginPath();
+                ctx.arc(0, -3, this.radius - 3, 0, Math.PI, true);
+                ctx.fill();
+                
+                // Weapon
+                ctx.save();
+                ctx.rotate(this.attacking ? -0.8 : 0.2);
+                
+                if (this.type === 'heavy') {
+                    // Battle axe
+                    ctx.fillStyle = '#8B4513';
+                    ctx.fillRect(12, -5, 6, 30);
+                    ctx.fillStyle = '#C0C0C0';
+                    ctx.beginPath();
+                    ctx.moveTo(15, -25);
+                    ctx.lineTo(25, -15);
+                    ctx.lineTo(15, -5);
+                    ctx.fill();
+                } else {
+                    // Sword
+                    ctx.fillStyle = '#C0C0C0';
+                    ctx.fillRect(14, -40, 4, 40);
+                    ctx.fillStyle = '#8B4513';
+                    ctx.fillRect(12, 0, 8, 8);
+                }
+                ctx.restore();
+                
+                ctx.restore();
+                
+                // Hit flash
+                if (this.hitFlash > 0) {
+                    ctx.fillStyle = `rgba(255,255,255,${this.hitFlash / 15})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, this.radius + 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                this.drawHealthBar(ctx, camX, camY);
+            }
+        }
+
+        // Initialize
+        const player = new Player();
+        let enemies = [];
+
+        // Drawing functions
+        function drawBackground(ctx, camX, camY) {
+            // Ground pattern
+            ctx.fillStyle = COLORS.ground;
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            // Grid pattern
+            ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+            ctx.lineWidth = 1;
+            const gridSize = 100;
+            const offsetX = -camX % gridSize;
+            const offsetY = -camY % gridSize;
+            
+            for (let x = offsetX; x < CANVAS_WIDTH; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CANVAS_HEIGHT);
+                ctx.stroke();
+            }
+            
+            for (let y = offsetY; y < CANVAS_HEIGHT; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CANVAS_WIDTH, y);
+                ctx.stroke();
+            }
+            
+            // Random rocks/grass
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            for (let i = 0; i < 20; i++) {
+                const rx = (i * 137) % 3000 - camX;
+                const ry = (i * 241) % 3000 - camY;
+                if (rx > -50 && rx < CANVAS_WIDTH + 50 && ry > -50 && ry < CANVAS_HEIGHT + 50) {
+                    ctx.beginPath();
+                    ctx.arc(rx, ry, 8 + (i % 5), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawAttackArc(ctx, x, y, angle, range) {
+            ctx.strokeStyle = 'rgba(255,215,0,0.6)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y, range, angle - 0.5, angle + 0.5);
+            ctx.stroke();
+            
+            ctx.fillStyle = 'rgba(255,215,0,0.2)';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.arc(x, y, range, angle - 0.5, angle + 0.5);
+            ctx.lineTo(x, y);
+            ctx.fill();
+        }
+
+        // Game Loop
+        function gameLoop() {
+            if (game.state !== 'playing') return;
+            
+            // Clear
+            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            // Update
+            player.update();
+            
+            // Update enemies
+            enemies.forEach(enemy => enemy.update());
+            
+            // Update particles
+            game.particles = game.particles.filter(p => {
+                p.update();
+                return p.life > 0;
+            });
+            
+            // Update floating texts
+            game.floatingTexts = game.floatingTexts.filter(t => {
+                t.update();
+                return t.life > 0;
+            });
+            
+            // Check player death
+            if (player.health <= 0) {
+                game.gameOver();
+                return;
+            }
+            
+            // Draw
+            drawBackground(ctx, game.camera.x, game.camera.y);
+            
+            // Draw attack indicator if attacking
+            if (player.attacking) {
+                drawAttackArc(
+                    ctx, 
+                    player.x - game.camera.x, 
+                    player.y - game.camera.y, 
+                    player.angle, 
+                    player.attackRange
+                );
+            }
+            
+            // Draw entities (sorted by Y for depth)
+            const entities = [player, ...enemies].sort((a, b) => a.y - b.y);
+            entities.forEach(entity => {
+                entity.draw(ctx, game.camera.x, game.camera.y);
+            });
+            
+            // Draw particles
+            game.particles.forEach(p => p.draw(ctx, game.camera.x, game.camera.y));
+            
+            // Draw floating texts
+            game.floatingTexts.forEach(t => t.draw(ctx, game.camera.x, game.camera.y));
+            
+            // Update HUD
+            game.updateHUD();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initial render
+        drawBackground(ctx, 0, 0);
+    </script>
+</body>
+</html>
