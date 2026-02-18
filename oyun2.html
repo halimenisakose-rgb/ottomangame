@@ -1,0 +1,21 @@
+ <!DOCTYPE html>
+<html>
+<head>
+    <title>Oyun 2</title>
+</head>
+<body style="text-align:center; font-family:Arial;">
+    <h1>Butona Bas!</h1>
+    <p id="score">Skor: 0</p>
+    <button onclick="arttir()" style="padding:20px; font-size:20px;">
+        Tıkla!
+    </button>
+
+    <script>
+        let skor = 0;
+        function arttir(){
+            skor++;
+            document.getElementById("score").innerText = "Skor: " + skor;
+        }
+    </script>
+</body>
+</html>
