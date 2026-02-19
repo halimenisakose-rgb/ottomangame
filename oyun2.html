@@ -1,21 +1,1113 @@
- <!DOCTYPE html>
-<html>
+<!DOCTYPE html>
+<html lang="tr">
 <head>
-    <title>Oyun 2</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOHAÇ 1526 - Tarihi Savaş</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #0a0a0a; font-family: 'Georgia', serif; color: #D4AF37; }
+        canvas { display: block; }
+        
+        #startScreen {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #0a0a0a 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 200;
+        }
+        
+        #startScreen h1 { font-size: 72px; letter-spacing: 12px; margin-bottom: 10px; text-shadow: 0 0 40px rgba(212,175,55,0.6); }
+        .subtitle { color: #8B0000; font-size: 24px; margin-bottom: 30px; letter-spacing: 6px; }
+        .info { color: #888; font-size: 14px; margin-bottom: 40px; text-align: center; line-height: 2; }
+        
+        button {
+            background: linear-gradient(to bottom, #D4AF37, #8B6914);
+            border: none; padding: 25px 70px; font-size: 22px; font-weight: bold;
+            color: #1a0000; cursor: pointer; border-radius: 4px; letter-spacing: 4px;
+        }
+        button:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(212,175,55,0.5); }
+        
+        .game-ui { position: fixed; pointer-events: none; }
+        
+        .counter {
+            top: 20px; padding: 12px 24px;
+            background: rgba(0,0,0,0.85); border: 2px solid; border-radius: 4px;
+            font-size: 16px; font-weight: bold; display: none;
+        }
+        #ottomanCounter { left: 20px; border-color: #D4AF37; color: #D4AF37; }
+        #crossCounter { right: 20px; border-color: #666; color: #999; }
+        
+        #phasePanel {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.9); border: 2px solid #D4AF37;
+            padding: 15px 30px; border-radius: 8px; text-align: center;
+            display: none; z-index: 50;
+        }
+        
+        #phaseText { font-size: 18px; color: #D4AF37; margin-bottom: 5px; }
+        #phaseTimer { font-size: 32px; font-weight: bold; color: #fff; }
+        
+        #tacticsPanel {
+            position: fixed; bottom: 20px; left: 20px;
+            background: rgba(0,0,0,0.9); border: 2px solid #D4AF37;
+            padding: 15px; border-radius: 8px; pointer-events: all; display: none;
+        }
+        #tacticsPanel h4 { font-size: 14px; margin-bottom: 10px; color: #D4AF37; }
+        .tactic-btn {
+            display: block; width: 100%; background: #1a1a1a; border: 1px solid #444;
+            color: #aaa; padding: 10px 15px; margin-bottom: 5px; cursor: pointer;
+            font-size: 13px; text-align: left;
+        }
+        .tactic-btn:hover { border-color: #D4AF37; color: #D4AF37; }
+        .tactic-btn.active { background: #8B0000; border-color: #D4AF37; color: #fff; }
+        .tactic-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        .dialogue {
+            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: rgba(5,5,5,0.98); border: 3px solid #D4AF37;
+            padding: 30px 50px; border-radius: 8px; max-width: 700px;
+            text-align: center; display: none; z-index: 50;
+        }
+        .speaker { color: #D4AF37; font-size: 14px; text-transform: uppercase; letter-spacing: 4px; margin-bottom: 15px; }
+        .text { color: #F5F5DC; font-size: 20px; line-height: 1.8; font-style: italic; }
+        
+        #resultScreen {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.98); z-index: 200;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        #resultScreen h2 { font-size: 48px; margin-bottom: 20px; }
+        .victory { color: #D4AF37; } .defeat { color: #666; }
+        
+        .result-stats { display: grid; grid-template-columns: repeat(2, 200px); gap: 20px; margin: 30px 0; }
+        .stat-box { background: rgba(20,20,20,0.9); border: 1px solid #444; padding: 20px; text-align: center; }
+        .stat-value { font-size: 32px; font-weight: bold; color: #D4AF37; }
+        .stat-label { font-size: 12px; color: #888; margin-top: 5px; }
+        
+        #abilityPanel {
+            position: fixed; bottom: 20px; right: 20px; display: none;
+            flex-direction: row; gap: 10px;
+        }
+        .ability {
+            width: 70px; height: 70px; background: rgba(0,0,0,0.9);
+            border: 2px solid #444; border-radius: 8px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; position: relative; pointer-events: all;
+        }
+        .ability.ready { border-color: #D4AF37; }
+        .ability-icon { font-size: 28px; }
+        .ability-key { font-size: 11px; color: #888; margin-top: 2px; }
+        .cd-overlay { position: absolute; bottom: 0; left: 0; right: 0; height: 0%; background: rgba(0,0,0,0.7); }
+        
+        #deploymentPanel {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95); border: 3px solid #D4AF37;
+            padding: 40px; border-radius: 8px; display: none; z-index: 100;
+            text-align: center; max-width: 500px;
+        }
+        #deploymentPanel h3 { font-size: 24px; margin-bottom: 20px; }
+        .formation-btn {
+            display: block; width: 100%; margin: 10px 0; padding: 15px;
+            background: #1a1a1a; border: 2px solid #444; color: #D4AF37;
+            cursor: pointer; font-size: 16px;
+        }
+        .formation-btn:hover { border-color: #D4AF37; }
+        
+        .skip-btn {
+            position: fixed; bottom: 20px; right: 20px;
+            background: transparent; border: 1px solid #666;
+            color: #666; padding: 10px 20px; cursor: pointer;
+            font-size: 12px; z-index: 60; display: none;
+        }
+        .skip-btn:hover { border-color: #D4AF37; color: #D4AF37; }
+    </style>
 </head>
-<body style="text-align:center; font-family:Arial;">
-    <h1>Butona Bas!</h1>
-    <p id="score">Skor: 0</p>
-    <button onclick="arttir()" style="padding:20px; font-size:20px;">
-        Tıkla!
-    </button>
+<body>
+    <div id="startScreen">
+        <h1>MOHAÇ 1526</h1>
+        <div class="subtitle">ÇEVRİLME SAVAŞI</div>
+        <div class="info">
+            29 Ağustos 1526 | Kanuni Sultan Süleyman vs Macar Kralı II. Lajos<br>
+            80,000 Osmanlı vs 25,000 Macar/Avusturya/Çek<br><br>
+            <b>Fazlar:</b> Konuşma → Konumlanma → Siz Karar Verin → Savaş<br>
+            WASD: Hareket | SPACE: Saldırı | SHIFT: Blok | F1-F4: Taktik
+        </div>
+        <button onclick="startGame()">SAVAŞI BAŞLAT</button>
+    </div>
+    
+    <canvas id="game"></canvas>
+    
+    <div class="counter game-ui" id="ottomanCounter">🛡️ Osmanlı: <span id="oCount">80</span></div>
+    <div class="counter game-ui" id="crossCounter">✝️ Haçlı: <span id="cCount">50</span></div>
+    
+    <div id="phasePanel">
+        <div id="phaseText">HAZIRLIK FAZI</div>
+        <div id="phaseTimer">30</div>
+    </div>
+    
+    <div id="deploymentPanel">
+        <h3>⚔️ ORDU DÜZENİNİ SEÇ</h3>
+        <button class="formation-btn" onclick="selectFormation('standard')">📐 KLASİK DÜZEN (Merkez: Yeniçeri, Kanatlar: Sipahi)</button>
+        <button class="formation-btn" onclick="selectFormation('defensive')">🛡️ SAVUNMA DÜZENİ (Yeniçeriler önde, Topçu arkada)</button>
+        <button class="formation-btn" onclick="selectFormation('aggressive')">⚔️ HÜCUM DÜZENİ (Sipahiler önde, Hızlı saldırı)</button>
+        <button class="formation-btn" onclick="selectFormation('turan')">🌙 TURAN TAKTİĞİ (Süvariler dairesel, Yeniçeriler merkezde)</button>
+    </div>
+    
+    <div id="tacticsPanel">
+        <h4>SAVAŞ EMİRLERİ</h4>
+        <button class="tactic-btn" id="btnHold" onclick="setTactic('hold')" disabled>🛡️ BEKLE (F1)</button>
+        <button class="tactic-btn" id="btnCharge" onclick="setTactic('charge')" disabled>⚔️ HÜCUM ET (F2)</button>
+        <button class="tactic-btn" id="btnFlank" onclick="setTactic('flank')" disabled>↗️ KANATLARI AÇ (F3)</button>
+        <button class="tactic-btn" id="btnRetreat" onclick="setTactic('retreat')" disabled>↩️ GERİ ÇEKİL (F4)</button>
+    </div>
+    
+    <div id="abilityPanel" class="game-ui">
+        <div class="ability" id="ability1" onclick="useAbility(1)">
+            <div class="ability-icon">🏹</div>
+            <div class="ability-key">Q</div>
+            <div class="cd-overlay" id="cd1"></div>
+        </div>
+        <div class="ability" id="ability2" onclick="useAbility(2)">
+            <div class="ability-icon">⚡</div>
+            <div class="ability-key">W</div>
+            <div class="cd-overlay" id="cd2"></div>
+        </div>
+        <div class="ability" id="ability3" onclick="useAbility(3)">
+            <div class="ability-icon">💣</div>
+            <div class="ability-key">E</div>
+            <div class="cd-overlay" id="cd3"></div>
+        </div>
+    </div>
+    
+    <div class="dialogue" id="dialogueBox">
+        <div class="speaker" id="dialogueSpeaker"></div>
+        <div class="text" id="dialogueText"></div>
+    </div>
+    
+    <button class="skip-btn" onclick="skipPhase()">⏭ Fazı Atla</button>
+    
+    <div id="resultScreen">
+        <h2 id="resultTitle" class="victory">ZAFER!</h2>
+        <div class="result-stats">
+            <div class="stat-box"><div class="stat-value" id="statKills">0</div><div class="stat-label">Düşman Öldürülen</div></div>
+            <div class="stat-box"><div class="stat-value" id="statLosses">0</div><div class="stat-label">Kayıplarımız</div></div>
+            <div class="stat-box"><div class="stat-value" id="statTime">0:00</div><div class="stat-label">Süre</div></div>
+            <div class="stat-box"><div class="stat-value" id="statRating">⭐⭐⭐</div><div class="stat-label">Taktik Puanı</div></div>
+        </div>
+        <button onclick="location.reload()">YENİDEN OYNA</button>
+    </div>
 
     <script>
-        let skor = 0;
-        function arttir(){
-            skor++;
-            document.getElementById("score").innerText = "Skor: " + skor;
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const CAMERA = {
+            zoom: 0.45,
+            x: 0, y: 0,
+            shake: 0,
+            apply() {
+                ctx.save();
+                ctx.translate(canvas.width/2, canvas.height/2);
+                ctx.scale(this.zoom, this.zoom);
+                ctx.translate(-this.x, -this.y);
+                if (this.shake > 0) {
+                    ctx.translate((Math.random()-0.5)*this.shake, (Math.random()-0.5)*this.shake);
+                    this.shake *= 0.9;
+                }
+            },
+            reset() { ctx.restore(); }
+        };
+        
+        let gameState = 'menu';
+        let phaseTimer = 0;
+        let selectedFormation = 'standard';
+        let currentTactic = 'hold';
+        let units = [], particles = [], projectiles = [];
+        let abilityCooldowns = [0, 0, 0];
+        let gameStartTime = 0;
+        let playerCanCommand = false;
+        let currentPhase = null;
+        let phaseInterval = null;
+        
+        const PHASES = {
+            DIALOGUE: { duration: 8000, text: 'KONUŞMA' },
+            DEPLOYMENT: { duration: 15000, text: 'KONUMLANMA' },
+            WAITING: { duration: 20000, text: 'SİZİN KARARINIZI BEKLİYOR' },
+            BATTLE: { duration: Infinity, text: 'SAVAŞ' }
+        };
+        
+        const UNIT_STATS = {
+            janissary: { hp: 150, dmg: 35, speed: 1.4, range: 70, radius: 28, color: '#8B0000' },
+            sipahi: { hp: 120, dmg: 40, speed: 2.8, range: 55, radius: 26, color: '#2C3E50' },
+            artillery: { hp: 60, dmg: 80, speed: 0.4, range: 400, radius: 24, color: '#4A4A4A' },
+            cross_infantry: { hp: 130, dmg: 28, speed: 1.2, range: 60, radius: 26, color: '#5D6D7E' },
+            cross_cavalry: { hp: 100, dmg: 45, speed: 3.2, range: 50, radius: 26, color: '#7F8C8D' },
+            knight: { hp: 180, dmg: 38, speed: 1.8, range: 65, radius: 30, color: '#95A5A6' }
+        };
+        
+        const keys = {};
+        window.addEventListener('keydown', e => {
+            keys[e.key.toLowerCase()] = true;
+            if (gameState === 'battle' && playerCanCommand) {
+                if (e.key === ' ') player.attack();
+                if (e.key === 'Shift') player.blocking = true;
+                if (e.key === 'F1') setTactic('hold');
+                if (e.key === 'F2') setTactic('charge');
+                if (e.key === 'F3') setTactic('flank');
+                if (e.key === 'F4') setTactic('retreat');
+                if (e.key === 'q') useAbility(1);
+                if (e.key === 'w') useAbility(2);
+                if (e.key === 'e') useAbility(3);
+            }
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.key.toLowerCase()] = false;
+            if (e.key === 'Shift') player.blocking = false;
+        });
+        window.addEventListener('mousedown', () => {
+            if (gameState === 'battle' && playerCanCommand) player.attack();
+        });
+        
+        const player = {
+            x: 0, y: 300,
+            radius: 32,
+            angle: -Math.PI/2,
+            hp: 300, maxHp: 300,
+            dmg: 50, speed: 3,
+            range: 90,
+            cooldown: 0,
+            attacking: false,
+            blocking: false,
+            
+            update() {
+                if (this.hp <= 0 || !playerCanCommand) return;
+                
+                let mx = 0, my = 0;
+                if (keys['w']) my -= 1;
+                if (keys['s']) my += 1;
+                if (keys['a']) mx -= 1;
+                if (keys['d']) mx += 1;
+                
+                if (mx || my) {
+                    const len = Math.hypot(mx, my);
+                    this.x += (mx/len) * this.speed;
+                    this.y += (my/len) * this.speed;
+                    this.angle = Math.atan2(my, mx);
+                }
+                
+                const dist = Math.hypot(this.x, this.y);
+                if (dist > 900) {
+                    const ang = Math.atan2(this.y, this.x);
+                    this.x = Math.cos(ang) * 900;
+                    this.y = Math.sin(ang) * 900;
+                }
+                
+                if (this.cooldown > 0) this.cooldown--;
+            },
+            
+            attack() {
+                if (this.cooldown > 0) return;
+                this.attacking = true;
+                this.cooldown = 30;
+                setTimeout(() => this.attacking = false, 400);
+                CAMERA.shake = 10;
+                
+                for (const u of units) {
+                    if (u.team === 'cross' && u.hp > 0) {
+                        const d = Math.hypot(u.x - this.x, u.y - this.y);
+                        const ang = Math.atan2(u.y - this.y, u.x - this.x);
+                        let diff = ang - this.angle;
+                        while (diff > Math.PI) diff -= Math.PI*2;
+                        while (diff < -Math.PI) diff += Math.PI*2;
+                        
+                        if (d < this.range && Math.abs(diff) < 1) {
+                            u.takeDamage(this.dmg);
+                            for (let i = 0; i < 8; i++) {
+                                particles.push(new Particle(u.x, u.y, '#FFD700', 5, 6));
+                            }
+                        }
+                    }
+                }
+            },
+            
+            draw() {
+                if (this.hp <= 0) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath();
+                ctx.ellipse(0, 25, this.radius, 10, 0, 0, Math.PI*2);
+                ctx.fill();
+                
+                const grad = ctx.createRadialGradient(-5,-5,0,0,0,this.radius);
+                grad.addColorStop(0, '#2C3E50');
+                grad.addColorStop(1, '#1C2833');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0,0,this.radius,0,Math.PI*2);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#D4AF37';
+                ctx.lineWidth = 4;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = 'rgba(212,175,55,0.5)';
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                ctx.fillStyle = '#D4AF37';
+                ctx.beginPath();
+                ctx.moveTo(-8,-18); ctx.lineTo(-4,-26); ctx.lineTo(0,-22);
+                ctx.lineTo(4,-26); ctx.lineTo(8,-18); ctx.lineTo(0,-16);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.fillStyle = '#C0392B';
+                ctx.beginPath();
+                ctx.ellipse(-18,-12,5,16,-0.5,0,Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = '#D4AF37';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-18,-22); ctx.lineTo(-18,0);
+                ctx.stroke();
+                
+                const swing = this.attacking ? -0.9 : 0.4;
+                ctx.rotate(swing);
+                ctx.strokeStyle = '#C0C0C0';
+                ctx.lineWidth = 6;
+                ctx.lineCap = 'round';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'rgba(255,255,255,0.6)';
+                ctx.beginPath();
+                ctx.moveTo(15,0);
+                ctx.lineTo(this.attacking?45:28, this.attacking?-30:-12);
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                if (this.blocking) {
+                    ctx.rotate(-swing);
+                    ctx.fillStyle = 'rgba(212,175,55,0.9)';
+                    ctx.beginPath();
+                    ctx.arc(-22,0,18,0,Math.PI*2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#8B0000';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#8B0000';
+                    ctx.beginPath();
+                    ctx.arc(-20,0,10,0.5,Math.PI-0.5);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            }
+        };
+        
+        class Unit {
+            constructor(x, y, type, team, formation) {
+                this.x = x; this.y = y;
+                this.type = type;
+                this.team = team;
+                this.formation = formation;
+                
+                const s = UNIT_STATS[type];
+                this.hp = s.hp; this.maxHp = s.hp;
+                this.dmg = s.dmg; this.speed = s.speed;
+                this.range = s.range; this.radius = s.radius;
+                this.color = s.color;
+                
+                this.angle = team === 'ottoman' ? -Math.PI/2 : Math.PI/2;
+                this.cooldown = 0;
+                this.engaged = false;
+                this.canMove = false;
+            }
+            
+            getFormationPos() {
+                const formations = {
+                    standard: {
+                        ottoman: { center: {x:0,y:200}, left: {x:-400,y:150}, right: {x:400,y:150}, artillery: {x:0,y:350} },
+                        cross: { center: {x:0,y:-250}, left: {x:-350,y:-200}, right: {x:350,y:-200}, cavalry: {x:0,y:-400} }
+                    },
+                    defensive: {
+                        ottoman: { center: {x:0,y:150}, left: {x:-350,y:200}, right: {x:350,y:200}, artillery: {x:0,y:50} },
+                        cross: { center: {x:0,y:-200}, left: {x:-300,y:-250}, right: {x:300,y:-250}, cavalry: {x:0,y:-350} }
+                    },
+                    aggressive: {
+                        ottoman: { center: {x:0,y:100}, left: {x:-400,y:50}, right: {x:400,y:50}, artillery: {x:0,y:250} },
+                        cross: { center: {x:0,y:-150}, left: {x:-350,y:-100}, right: {x:350,y:-100}, cavalry: {x:0,y:-300} }
+                    },
+                    turan: {
+                        ottoman: { center: {x:0,y:250}, left: {x:-500,y:200}, right: {x:500,y:200}, artillery: {x:0,y:400} },
+                        cross: { center: {x:0,y:-250}, left: {x:-400,y:-200}, right: {x:400,y:-200}, cavalry: {x:0,y:-400} }
+                    }
+                };
+                
+                const f = formations[selectedFormation] || formations.standard;
+                const base = f[this.team][this.formation] || f[this.team].center;
+                
+                let ox = 0, oy = 0;
+                if (this.canMove) {
+                    switch(currentTactic) {
+                        case 'charge': oy = this.team === 'ottoman' ? -250 : 250; break;
+                        case 'flank': if (this.formation === 'left') ox = -300; if (this.formation === 'right') ox = 300; break;
+                        case 'retreat': oy = this.team === 'ottoman' ? 200 : -200; break;
+                    }
+                }
+                
+                return { x: base.x + ox, y: base.y + oy };
+            }
+            
+            update() {
+                if (this.hp <= 0) return;
+                if (this.cooldown > 0) this.cooldown--;
+                
+                if (this.type === 'artillery') {
+                    if (this.canMove && this.cooldown <= 0) {
+                        const enemies = units.filter(u => u.team === 'cross' && u.hp > 0);
+                        if (enemies.length > 0) {
+                            const target = enemies[Math.floor(Math.random() * enemies.length)];
+                            projectiles.push(new Projectile(this.x, this.y, target.x, target.y));
+                            this.cooldown = 150;
+                        }
+                    }
+                    return;
+                }
+                
+                if (!this.canMove && gameState !== 'deployment') {
+                    const pos = this.getFormationPos();
+                    const dx = pos.x - this.x;
+                    const dy = pos.y - this.y;
+                    const d = Math.hypot(dx, dy);
+                    if (d > 20) {
+                        this.x += (dx/d) * this.speed * 0.3;
+                        this.y += (dy/d) * this.speed * 0.3;
+                        this.angle = Math.atan2(dy, dx);
+                    }
+                    return;
+                }
+                
+                const enemies = units.filter(u => u.team !== this.team && u.hp > 0);
+                let target = null;
+                let minDist = Infinity;
+                
+                for (const e of enemies) {
+                    const d = Math.hypot(e.x - this.x, e.y - this.y);
+                    if (d < minDist && d < 500) {
+                        minDist = d;
+                        target = e;
+                    }
+                }
+                
+                if (target) {
+                    const dist = Math.hypot(target.x - this.x, target.y - this.y);
+                    
+                    if (dist <= this.range) {
+                        this.engaged = true;
+                        this.angle = Math.atan2(target.y - this.y, target.x - this.x);
+                        if (this.cooldown <= 0) this.attack(target);
+                    } else {
+                        this.engaged = false;
+                        const dx = target.x - this.x;
+                        const dy = target.y - this.y;
+                        const d = Math.hypot(dx, dy);
+                        this.x += (dx/d) * this.speed;
+                        this.y += (dy/d) * this.speed;
+                        this.angle = Math.atan2(dy, dx);
+                    }
+                } else {
+                    const pos = this.getFormationPos();
+                    const dx = pos.x - this.x;
+                    const dy = pos.y - this.y;
+                    const d = Math.hypot(dx, dy);
+                    if (d > 40) {
+                        this.x += (dx/d) * this.speed * 0.5;
+                        this.y += (dy/d) * this.speed * 0.5;
+                        this.angle = Math.atan2(dy, dx);
+                    }
+                }
+                
+                for (const other of units) {
+                    if (other !== this && other.hp > 0) {
+                        const d = Math.hypot(other.x - this.x, other.y - this.y);
+                        if (d < this.radius + other.radius) {
+                            const push = (this.radius + other.radius - d) * 0.5;
+                            const ang = Math.atan2(this.y - other.y, this.x - other.x);
+                            this.x += Math.cos(ang) * push;
+                            this.y += Math.sin(ang) * push;
+                        }
+                    }
+                }
+            }
+            
+            attack(target) {
+                this.cooldown = 40;
+                if (Math.random() < 0.2) return;
+                
+                let dmg = this.dmg;
+                if (selectedFormation === 'turan' && (this.type === 'sipahi' || this.type === 'cross_cavalry')) {
+                    dmg *= 1.2;
+                }
+                
+                target.takeDamage(dmg);
+                
+                for (let i = 0; i < 5; i++) {
+                    particles.push(new Particle(target.x, target.y, '#8B0000', 4, 5));
+                }
+            }
+            
+            takeDamage(dmg) {
+                this.hp -= dmg;
+                if (this.hp <= 0) {
+                    for (let i = 0; i < 12; i++) {
+                        particles.push(new Particle(this.x, this.y, this.color, 5, 7));
+                    }
+                    updateCounters();
+                }
+            }
+            
+            draw() {
+                if (this.hp <= 0) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                ctx.fillStyle = 'rgba(0,0,0,0.35)';
+                ctx.beginPath();
+                ctx.ellipse(0, this.radius*0.8, this.radius, this.radius*0.35, 0, 0, Math.PI*2);
+                ctx.fill();
+                
+                const grad = ctx.createRadialGradient(-4,-4,0,0,0,this.radius);
+                grad.addColorStop(0, this.color);
+                grad.addColorStop(1, '#1a1a1a');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0,0,this.radius,0,Math.PI*2);
+                ctx.fill();
+                
+                ctx.strokeStyle = this.team === 'ottoman' ? '#D4AF37' : '#AAA';
+                ctx.lineWidth = this.engaged ? 4 : 3;
+                ctx.shadowBlur = this.engaged ? 15 : 0;
+                ctx.shadowColor = this.team === 'ottoman' ? 'rgba(212,175,55,0.4)' : 'rgba(170,170,170,0.3)';
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                ctx.fillStyle = '#222';
+                ctx.beginPath();
+                ctx.arc(0,-this.radius*0.4,this.radius*0.5,0,Math.PI*2);
+                ctx.fill();
+                
+                if (this.type === 'janissary') {
+                    ctx.fillStyle = '#C0392B';
+                    ctx.beginPath();
+                    ctx.ellipse(-this.radius*0.7,-this.radius*0.5,this.radius*0.25,this.radius*0.9,-0.5,0,Math.PI*2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#D4AF37';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.radius*0.7,-this.radius*0.9);
+                    ctx.lineTo(-this.radius*0.7,this.radius*0.6);
+                    ctx.stroke();
+                }
+                
+                if (this.type === 'sipahi') {
+                    ctx.fillStyle = '#2C3E50';
+                    ctx.beginPath();
+                    ctx.ellipse(0,-this.radius*0.6,this.radius*0.6,this.radius*0.4,0,0,Math.PI*2);
+                    ctx.fill();
+                }
+                
+                if (this.type === 'knight') {
+                    ctx.strokeStyle = '#D4AF37';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0,-this.radius*0.3);
+                    ctx.lineTo(0,this.radius*0.5);
+                    ctx.moveTo(-this.radius*0.3,0);
+                    ctx.lineTo(this.radius*0.3,0);
+                    ctx.stroke();
+                }
+                
+                ctx.strokeStyle = '#AAA';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(this.radius*0.6,0);
+                ctx.lineTo(this.radius*1.4,-this.radius*0.2);
+                ctx.stroke();
+                
+                if (this.type === 'janissary' || this.type === 'cross_infantry') {
+                    ctx.strokeStyle = '#654321';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(this.radius*0.7,0);
+                    ctx.lineTo(this.radius*2.2,-this.radius*0.8);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#888';
+                    ctx.beginPath();
+                    ctx.moveTo(this.radius*2.2,-this.radius*0.8);
+                    ctx.lineTo(this.radius*2.5,-this.radius*1.2);
+                    ctx.lineTo(this.radius*1.9,-this.radius*0.6);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+                
+                const barW = this.radius * 1.2;
+                const hp = Math.max(0, this.hp/this.maxHp);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(this.x-barW/2, this.y-this.radius-15, barW, 6);
+                ctx.fillStyle = hp>0.5?'#2ECC71':hp>0.25?'#F39C12':'#E74C3C';
+                ctx.fillRect(this.x-barW/2, this.y-this.radius-15, barW*hp, 6);
+                
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillRect(this.x-barW/2, this.y-this.radius-15, barW*hp, 3);
+            }
         }
+        
+        class Particle {
+            constructor(x, y, color, speed, size) {
+                this.x = x; this.y = y; this.color = color;
+                const a = Math.random() * Math.PI * 2;
+                this.vx = Math.cos(a) * speed;
+                this.vy = Math.sin(a) * speed - 2;
+                this.size = size; this.life = 1;
+                this.decay = 0.015;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.vy += 0.25;
+                this.life -= this.decay;
+                return this.life > 0;
+            }
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        class Projectile {
+            constructor(x, y, tx, ty) {
+                this.x = x; this.y = y; this.tx = tx; this.ty = ty;
+                const d = Math.hypot(tx-x, ty-y);
+                this.vx = (tx-x)/d * 5;
+                this.vy = (ty-y)/d * 5 - 3;
+                this.active = true;
+                this.trail = [];
+            }
+            update() {
+                this.trail.push({x:this.x,y:this.y});
+                if (this.trail.length > 8) this.trail.shift();
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.15;
+                
+                if (this.y > this.ty || Math.hypot(this.x-this.tx,this.y-this.ty) < 30) {
+                    this.explode();
+                    this.active = false;
+                }
+            }
+            explode() {
+                CAMERA.shake = 12;
+                for (let i = 0; i < 20; i++) {
+                    particles.push(new Particle(this.x, this.y, '#444', 6, 8));
+                    particles.push(new Particle(this.x, this.y, '#8B0000', 4, 6));
+                }
+                for (const u of units) {
+                    if (u.team === 'cross' && u.hp > 0) {
+                        const d = Math.hypot(u.x-this.x, u.y-this.y);
+                        if (d < 80) u.takeDamage(40 + Math.random()*30);
+                    }
+                }
+            }
+            draw() {
+                ctx.strokeStyle = 'rgba(50,50,50,0.5)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                for (const p of this.trail) ctx.lineTo(p.x, p.y);
+                ctx.lineTo(this.x, this.y);
+                ctx.stroke();
+                
+                ctx.fillStyle = '#222';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 6, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+        
+        function initUnits() {
+            units = [];
+            
+            for (let i = 0; i < 40; i++) {
+                const row = Math.floor(i / 10);
+                const col = i % 10;
+                units.push(new Unit(
+                    -200 + col * 50 + (Math.random()-0.5)*20,
+                    300 + row * 45 + (Math.random()-0.5)*20,
+                    'janissary', 'ottoman', 'center'
+                ));
+            }
+            for (let i = 0; i < 20; i++) {
+                const row = Math.floor(i / 5);
+                const col = i % 5;
+                units.push(new Unit(
+                    -550 + col * 45,
+                    200 + row * 50,
+                    'sipahi', 'ottoman', 'left'
+                ));
+            }
+            for (let i = 0; i < 20; i++) {
+                const row = Math.floor(i / 5);
+                const col = i % 5;
+                units.push(new Unit(
+                    350 + col * 45,
+                    200 + row * 50,
+                    'sipahi', 'ottoman', 'right'
+                ));
+            }
+            for (let i = 0; i < 12; i++) {
+                units.push(new Unit(
+                    -220 + i * 40,
+                    450,
+                    'artillery', 'ottoman', 'artillery'
+                ));
+            }
+            
+            for (let i = 0; i < 25; i++) {
+                const row = Math.floor(i / 8);
+                const col = i % 8;
+                units.push(new Unit(
+                    -175 + col * 45,
+                    -250 - row * 40,
+                    'cross_infantry', 'cross', 'center'
+                ));
+            }
+            for (let i = 0; i < 12; i++) {
+                units.push(new Unit(
+                    -400 + (i%4)*40,
+                    -180 - Math.floor(i/4)*45,
+                    'cross_cavalry', 'cross', 'left'
+                ));
+            }
+            for (let i = 0; i < 12; i++) {
+                units.push(new Unit(
+                    280 + (i%4)*40,
+                    -180 - Math.floor(i/4)*45,
+                    'cross_cavalry', 'cross', 'right'
+                ));
+            }
+            for (let i = 0; i < 6; i++) {
+                units.push(new Unit(
+                    -125 + i * 50,
+                    -400,
+                    'knight', 'cross', 'cavalry'
+                ));
+            }
+            
+            player.x = 0; player.y = 350;
+            player.hp = player.maxHp;
+        }
+        
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('ottomanCounter').style.display = 'block';
+            document.getElementById('crossCounter').style.display = 'block';
+            document.querySelector('.skip-btn').style.display = 'block';
+            
+            initUnits();
+            updateCounters();
+            
+            startPhase('DIALOGUE');
+        }
+        
+        function startPhase(phaseName) {
+            currentPhase = phaseName;
+            const phase = PHASES[phaseName];
+            phaseTimer = Math.floor(phase.duration / 1000);
+            
+            const panel = document.getElementById('phasePanel');
+            const text = document.getElementById('phaseText');
+            const timer = document.getElementById('phaseTimer');
+            
+            panel.style.display = 'block';
+            text.textContent = phase.text;
+            timer.textContent = phaseTimer;
+            
+            if (phaseInterval) clearInterval(phaseInterval);
+            
+            phaseInterval = setInterval(() => {
+                phaseTimer--;
+                timer.textContent = phaseTimer;
+                
+                if (phaseTimer <= 0) {
+                    clearInterval(phaseInterval);
+                    nextPhase();
+                }
+            }, 1000);
+            
+            if (phaseName === 'DIALOGUE') {
+                showDialogue();
+            } else if (phaseName === 'DEPLOYMENT') {
+                document.getElementById('deploymentPanel').style.display = 'block';
+            } else if (phaseName === 'WAITING') {
+                document.getElementById('deploymentPanel').style.display = 'none';
+                document.getElementById('tacticsPanel').style.display = 'block';
+                document.querySelectorAll('.tactic-btn').forEach(b => b.disabled = false);
+                playerCanCommand = true;
+            } else if (phaseName === 'BATTLE') {
+                // SAVAŞ BAŞLAYINCA TÜM YAZILARI GİZLE
+                hideAllPanels();
+                
+                gameState = 'battle';
+                gameStartTime = Date.now();
+                units.forEach(u => u.canMove = true);
+                document.getElementById('abilityPanel').style.display = 'flex';
+            }
+        }
+        
+        function hideAllPanels() {
+            // Tüm panelleri gizle
+            document.getElementById('phasePanel').style.display = 'none';
+            document.getElementById('deploymentPanel').style.display = 'none';
+            document.getElementById('tacticsPanel').style.display = 'none';
+            document.getElementById('dialogueBox').style.display = 'none';
+            document.querySelector('.skip-btn').style.display = 'none';
+            
+            // Aktif taktik butonlarını sıfırla
+            document.querySelectorAll('.tactic-btn').forEach(b => {
+                b.classList.remove('active');
+                b.disabled = true;
+            });
+        }
+        
+        function showDialogue() {
+            const dialogues = [
+                { speaker: 'Yeniçeri Ağası İbrahim', text: 'Sultanım! Kafirler nehre kadar çekilmiş. Topçularımız hazır, Sipahiler kanatlarda. Emrinizi bekliyoruz.' },
+                { speaker: 'Kanuni Sultan Süleyman', text: 'Bugün Mohaç ovasında tarih yazılacak. Allah\'ın izniyle bu topraklarda ebedi zafer bizim olacak!' }
+            ];
+            
+            const box = document.getElementById('dialogueBox');
+            const spk = document.getElementById('dialogueSpeaker');
+            const txt = document.getElementById('dialogueText');
+            
+            let i = 0;
+            function showNext() {
+                if (i >= dialogues.length) {
+                    box.style.display = 'none';
+                    return;
+                }
+                box.style.display = 'block';
+                spk.textContent = dialogues[i].speaker;
+                txt.textContent = dialogues[i].text;
+                i++;
+            }
+            
+            showNext();
+            setTimeout(showNext, 4000);
+        }
+        
+        function selectFormation(form) {
+            selectedFormation = form;
+            document.getElementById('deploymentPanel').style.display = 'none';
+            
+            const names = { standard: 'Klasik Düzen', defensive: 'Savunma Düzeni', aggressive: 'Hücum Düzeni', turan: 'Turan Taktiği' };
+            showMessage('⚔️ ' + names[form] + ' seçildi!');
+        }
+        
+        function nextPhase() {
+            const order = ['DIALOGUE', 'DEPLOYMENT', 'WAITING', 'BATTLE'];
+            const idx = order.indexOf(currentPhase);
+            if (idx < order.length - 1) {
+                startPhase(order[idx + 1]);
+            }
+        }
+        
+        function skipPhase() {
+            if (phaseInterval) clearInterval(phaseInterval);
+            nextPhase();
+        }
+        
+        function setTactic(tac) {
+            if (!playerCanCommand || gameState !== 'battle') return;
+            currentTactic = tac;
+            
+            document.querySelectorAll('.tactic-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn' + tac.charAt(0).toUpperCase() + tac.slice(1)).classList.add('active');
+            
+            const msgs = {
+                hold: '🛡️ BEKLE: Mevkileri koruyun!',
+                charge: '⚔️ HÜCUM: Tüm birimler ileri!',
+                flank: '↗️ KANAT: Kanatlardan sarın!',
+                retreat: '↩️ GERİ: Taktik çekilme!'
+            };
+            showMessage(msgs[tac]);
+        }
+        
+        function showMessage(text) {
+            // Eğer savaş başladıysa kısa süreli mesaj göster
+            const duration = gameState === 'battle' ? 2000 : 3000;
+            
+            const msg = document.createElement('div');
+            msg.style.cssText = 'position:fixed;top:35%;left:50%;transform:translate(-50%,-50%);background:rgba(139,0,0,0.95);border:3px solid #D4AF37;color:#D4AF37;padding:25px 50px;font-size:24px;font-weight:bold;z-index:100;border-radius:8px;box-shadow:0 0 30px rgba(0,0,0,0.5);';
+            msg.textContent = text;
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), duration);
+        }
+        
+        function useAbility(n) {
+            if (abilityCooldowns[n-1] > 0 || !playerCanCommand) return;
+            abilityCooldowns[n-1] = 600;
+            
+            const abilities = [
+                () => {
+                    for (const u of units) {
+                        if (u.team === 'cross' && u.hp > 0) {
+                            u.takeDamage(20);
+                            for (let i = 0; i < 3; i++) particles.push(new Particle(u.x, u.y-30, '#8B4513', 3, 4));
+                        }
+                    }
+                    showMessage('🏹 Ok Yağmuru!');
+                },
+                () => {
+                    for (const u of units) if (u.team === 'ottoman') u.speed *= 1.4;
+                    setTimeout(() => {
+                        for (const u of units) if (u.team === 'ottoman') u.speed /= 1.4;
+                    }, 5000);
+                    showMessage('⚡ Allahû Ekber! Hız +40%');
+                },
+                () => {
+                    for (let i = 0; i < 5; i++) {
+                        const x = (Math.random()-0.5)*600;
+                        const y = -200 + (Math.random()-0.5)*200;
+                        projectiles.push(new Projectile(x, 500, x, y));
+                    }
+                    showMessage('💣 Topçu Barrajı!');
+                }
+            ];
+            
+            abilities[n-1]();
+        }
+        
+        function updateCounters() {
+            const o = units.filter(u => u.team === 'ottoman' && u.hp > 0).length + (player.hp > 0 ? 1 : 0);
+            const c = units.filter(u => u.team === 'cross' && u.hp > 0).length;
+            document.getElementById('oCount').textContent = o;
+            document.getElementById('cCount').textContent = c;
+            
+            if (gameState === 'battle') {
+                if (c === 0) endBattle(true);
+                else if (o === 0 && player.hp <= 0) endBattle(false);
+            }
+        }
+        
+        function endBattle(victory) {
+            gameState = 'end';
+            if (phaseInterval) clearInterval(phaseInterval);
+            
+            const time = Math.floor((Date.now() - gameStartTime) / 1000);
+            const min = Math.floor(time/60);
+            const sec = time%60;
+            
+            const kills = units.filter(u => u.team === 'cross' && u.hp <= 0).length;
+            const losses = units.filter(u => u.team === 'ottoman' && u.hp <= 0).length;
+            
+            let rating = 1;
+            if (victory) {
+                if (losses < 15) rating = 3;
+                else if (losses < 30) rating = 2;
+            }
+            
+            document.getElementById('resultScreen').style.display = 'flex';
+            document.getElementById('resultTitle').textContent = victory ? 'ZAFER!' : 'BOZGUN';
+            document.getElementById('resultTitle').className = victory ? 'victory' : 'defeat';
+            document.getElementById('statKills').textContent = kills;
+            document.getElementById('statLosses').textContent = losses;
+            document.getElementById('statTime').textContent = `${min}:${sec.toString().padStart(2,'0')}`;
+            document.getElementById('statRating').textContent = '⭐'.repeat(rating) + '☆'.repeat(3-rating);
+        }
+        
+        function loop() {
+            for (let i = 0; i < 3; i++) {
+                if (abilityCooldowns[i] > 0) {
+                    abilityCooldowns[i]--;
+                    document.getElementById('cd' + (i+1)).style.height = (abilityCooldowns[i]/600*100) + '%';
+                    document.getElementById('ability' + (i+1)).classList.toggle('ready', abilityCooldowns[i] <= 0);
+                }
+            }
+            
+            if (gameState !== 'menu' && gameState !== 'end') {
+                if (gameState === 'battle') player.update();
+                for (const u of units) u.update();
+                for (const p of projectiles) p.update();
+                projectiles = projectiles.filter(p => p.active);
+                particles = particles.filter(p => p.update());
+            }
+            
+            CAMERA.apply();
+            
+            ctx.fillStyle = '#C9B896';
+            ctx.fillRect(-1200, -1000, 2400, 2000);
+            
+            ctx.fillStyle = '#3d5c5c';
+            ctx.fillRect(-1200, -1000, 2400, 250);
+            ctx.fillStyle = '#5a8a8a';
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                ctx.arc(-1000 + i * 120, -880 + Math.sin(i)*20, 40, 0, Math.PI);
+                ctx.fill();
+            }
+            
+            for (let i = 0; i < 100; i++) {
+                const x = ((i*137)%2200)-1100;
+                const y = ((i*263)%1400)-700;
+                ctx.fillStyle = 'rgba(139,119,101,0.25)';
+                ctx.beginPath();
+                ctx.ellipse(x,y,35,15,0,0,Math.PI*2);
+                ctx.fill();
+            }
+            
+            ctx.fillStyle = 'rgba(100,90,80,0.1)';
+            ctx.beginPath();
+            ctx.ellipse(-600, -600, 400, 150, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(500, -550, 350, 120, 0, 0, Math.PI*2);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(139,0,0,0.12)';
+            ctx.setLineDash([20,15]);
+            ctx.lineWidth = 3;
+            ctx.strokeRect(-450,100,900,350);
+            ctx.strokeStyle = 'rgba(0,0,139,0.12)';
+            ctx.strokeRect(-400,-500,800,250);
+            ctx.setLineDash([]);
+            
+            const all = [...units, player].filter(e => e.hp > 0).sort((a,b) => a.y - b.y);
+            for (const e of all) e.draw();
+            
+            for (const p of projectiles) p.draw();
+            for (const p of particles) p.draw();
+            
+            CAMERA.reset();
+            
+            requestAnimationFrame(loop);
+        }
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        loop();
     </script>
 </body>
 </html>
